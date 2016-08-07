@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+#
+
+import sys
+import base64
+import os.path
+import hashlib
+
+INTERNAL_RUNTIME = '''#!/usr/bin/env python
+
+import sys
+import base64
+import hashlib
+
+def file_md5(filename):
+    hasher = hashlib.md5()
+    with open(filename, 'rb') as fd:
+        for chunk in iter(lambda:fd.read(4096), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+MD5='%(md5)s'
+DATA='%(data)s'
+
+if len(sys.argv) != 2:
+    print 'ERROR: provide output filename'
+    sys.exit(-1)
+
+with open(sys.argv[1], 'wb') as fd:
+    fd.write(base64.b64decode(DATA))
+
+if file_md5(sys.argv[1]) == MD5:
+    print 'File created successfully!'
+    sys.exit(0)
+else:
+    print 'ERROR: MD5 check failed!'
+    sys.exit(-1)
+'''
+
+
+def main():
+    options = parse_arguments()
+    
+    # Read runtime file
+    if options.runtime_file is None:
+        runtime = INTERNAL_RUNTIME
+    else:
+        with open(options.runtime_file, 'rw') as fd:
+            runtime = fd.read()
+        
+    # Put original MD5 and encoded data
+    runtime = runtime % {
+        'md5': file_md5(options.input_file),
+        'data': file_encode(options.input_file)
+    }
+    
+    # Save file
+    with open(options.output_file, 'wb') as fd:
+        fd.write(runtime)
+    print 'File created.'
+
+    
+def parse_arguments():
+    '''Quick'n'dirty argument parser'''
+    class UserOptions(object):
+        input_file = None
+        output_file = None
+        runtime_file = None
+    if len(sys.argv) not in [3, 4]:
+        prog = os.path.basename(__file__)
+        print 'ERROR: %s <input_file> <output_file> [sfx_runtime_file]' % prog
+        sys.exit(-1)
+    options = UserOptions()
+    options.input_file = sys.argv[1]
+    options.output_file = sys.argv[2]
+    if len(sys.argv) == 4:
+        options.runtime_file = sys.argv[3]
+
+    if not os.path.exists(options.input_file):
+        print 'ERROR: file "%s" not found!' % options.input_file
+        sys.exit(-2)
+
+    if options.runtime_file is not None:
+        if not os.path.exists(options.runtime_file):
+            print 'ERROR: file "%s" not found!' % options.runtime_file
+            sys.exit(-2)
+        
+    return options
+
+
+def file_md5(filename):
+    '''Compute MD5 sum of a file'''
+    hasher = hashlib.md5()
+    with open(filename, 'rb') as fd:
+        for chunk in iter(lambda:fd.read(4096), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def file_encode(filename):
+    '''Encode entire file in base64'''
+    data = ''
+    with open(filename, 'rb') as fd:
+        for chunk in iter(lambda:fd.read(4096), b""):
+            data += base64.b64encode(chunk)
+    return data
+
+if __name__ == '__main__':
+    main()
+    sys.exit(0)
