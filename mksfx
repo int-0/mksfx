@@ -27,7 +27,7 @@ def file_md5(filename):
     return hasher.hexdigest()
 
 if len(sys.argv) != 2:
-    print 'ERROR: provide output filename'
+    print 'ERROR: provide output filename or -t'
     sys.exit(-1)
 
 with tempfile.NamedTemporaryFile(delete=False) as fd:
@@ -35,8 +35,12 @@ with tempfile.NamedTemporaryFile(delete=False) as fd:
     tmp = fd.name
 
 if file_md5(tmp) == MD5:
-    shutil.move(tmp, sys.argv[1])
-    print 'File created successfully!'
+    if sys.argv[1] == '-t' or '--test':
+        os.remove(tmp)
+        print 'File OK!'
+    else:
+        shutil.move(tmp, sys.argv[1])
+        print 'File created successfully!'
     sys.exit(0)
 else:
     os.remove(tmp)
