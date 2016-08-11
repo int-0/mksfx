@@ -7,10 +7,17 @@ import os.path
 import hashlib
 
 INTERNAL_RUNTIME = '''#!/usr/bin/env python
+# Script created with mksfx by int-0
 
+import os
 import sys
 import base64
+import shutil
 import hashlib
+import tempfile
+
+MD5='%(md5)s'
+DATA='%(data)s'
 
 def file_md5(filename):
     hasher = hashlib.md5()
@@ -19,22 +26,22 @@ def file_md5(filename):
             hasher.update(chunk)
     return hasher.hexdigest()
 
-MD5='%(md5)s'
-DATA='%(data)s'
-
 if len(sys.argv) != 2:
     print 'ERROR: provide output filename'
     sys.exit(-1)
 
-with open(sys.argv[1], 'wb') as fd:
+with tempfile.NamedTemporaryFile(delete=False) as fd:
     fd.write(base64.b64decode(DATA))
+    tmp = fd.name
 
-if file_md5(sys.argv[1]) == MD5:
+if file_md5(tmp) == MD5:
+    shutil.move(tmp, sys.argv[1])
     print 'File created successfully!'
     sys.exit(0)
 else:
+    os.remove(tmp)
     print 'ERROR: MD5 check failed!'
-    sys.exit(-1)
+    sys.exit(-2)
 '''
 
 
